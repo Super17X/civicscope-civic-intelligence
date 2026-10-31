@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import handler,{paragraphDifference} from '../api/diff.js';
+test('exact paragraph difference returns modified text but not invented legal conclusion',()=>{const a='A'.repeat(70)+'\n\n'+'C'.repeat(90),b='B'.repeat(70)+'\n\n'+'C'.repeat(90);const d=paragraphDifference(a,b);assert.equal(d.removed.length,1);assert.equal(d.added.length,1);assert.equal(d.originalParagraphs,2)});
+test('invalid document numbers rejected before fetching external text',async()=>{let status=0,body;await handler({method:'GET',query:{proposal:'../admin',final:'2026-12345'}},{setHeader(){},end(x){body=JSON.parse(x)},set statusCode(x){status=x}});assert.equal(status,400);assert.match(body.error,/Enter two different/)});

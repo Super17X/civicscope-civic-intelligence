@@ -1,47 +1,81 @@
-# CivicScope — ZIP-first civic intelligence
+# CivicScope 2.0 — ZIP-first civic intelligence
 
-A lightweight, accessible, nonpartisan dashboard that distinguishes **national regulatory information**, **statewide proposed legislation**, and **address-verified local voting jurisdictions**. Built with zero client dependencies and a Vercel Node serverless data adapter. No accounts required.
+**Status:** GitHub/Vercel deployable source, source-grounded research and incremental jurisdiction coverage. CivicScope is an independent, nonpartisan tool; it is not an election authority, legal advice, or a city planning department.
 
-## Running and publishing
+## Available features
 
-- Deploy this folder as a **Vercel Other** project, without a build command. `index.html` serves the static web app and `api/data.js` serves `/api/data`.
-- Set optional server-side environment variables in Vercel project settings: `OPENSTATES_API_KEY` and `CONGRESS_API_KEY`. Do not commit secrets or put them in browser code.
-- `npm test` runs unit tests; `npm run check` checks JS syntax. Tests require Node.js >= 20.
-- For full development with serverless functions, use `npx vercel dev` once linked to your Vercel project.
-- `test/browser_smoke.py` performs browser interactions with **mocked** responses and screenshots; it does not validate real production feed availability. Requires Python Playwright and Chromium.
+- ZIP lookup from Zippopotam.us (approximate city/state **only**; not an address, voting precinct, zoning parcel, or jurisdiction guarantee).
+- Optional address-level Census geographic verification using **explicit consent** and a POST to the CivicScope server. The service forwards the address to the U.S. Census Geocoder; raw addresses are not persisted by the app. Census boundary data is **not** an official ballot or property-specific zoning finding.
+- Live Federal Register public proposed/final rules, pagination, configurable topic filtering, source and freshness indicators.
+- Optional Open States state legislative bills (`OPENSTATES_API_KEY`) and Congress.gov bill search (`CONGRESS_API_KEY`). Missing keys show unavailable coverage rather than invented records.
+- NYC **citywide** Zoning Application Portal records from NYC Open Data (initial local adapter; ZIP/parcel mapping not verified), optional NYC Council Legistar API token (`NYC_LEGISTAR_TOKEN`). Other cities get a truthful unsupported-coverage state instead of pretending NYC data is local.
+- National election calendar and limited explicitly sourced 2026 New York election events. Exact races, candidates, early voting and polling places must be verified with official local election offices.
+- Regulatory history search by RIN, matched proposal/final documents, official full-text paragraph differences between **two specific Federal Register documents** (not an eCFR legal amendment redline).
+- Saved documents and topics in browser-local storage, in-session alerts, JSON export, iCalendar (.ics) export for events/deadlines.
+- Research assistant using source-grounded Federal Register documents. Extractive fallback requires no model key; optional AI summaries with `OPENAI_API_KEY` use server-side official source snippets and citations.
+- Optional email alert infrastructure with PostgreSQL, Resend, opt-in confirmation, unsubscribe links, per-document delivery deduplication and Vercel daily cron. **Not active without server-side secrets, database migration and provider setup.** The cron currently monitors nationwide Federal Register updates only.
 
-## Sources and exact coverage
+## Setup
 
-| Feature | Source | Scope | Credential |
-| --- | --- | --- | --- |
-| ZIP -> city/state | Zippopotam.us | Approximate ZIP geography only | None |
-| Latest proposed/final rules | Federal Register JSON API | Nationwide (not ZIP specific) | None |
-| Federal general election date | Computed from statutory recurring federal schedule, cross-check with FEC | Nationwide date only | None |
-| State bills | Open States / Plural Policy API | Statewide, if configured | OPENSTATES_API_KEY |
-| Federal bills | Congress.gov v3 | Nationwide, if configured | CONGRESS_API_KEY |
-| Ballots, polling locations, city plans | Official external government resources | User verifies full address/district | Not connected in MVP |
+Deploy the repository root to Vercel with the **Other** framework. `index.html` is the SPA, `app.js` and `v2.js` are the dependency-free client, and `/api` hosts Node 22-compatible serverless functions.
 
-**Important:** A ZIP is not an electoral district, zoning boundary, municipal boundary, or precise point. Do not describe these records as the user's specific ballot or neighborhood's decisions. Data sources can be stale or incomplete. Federal Register feeds show the newest 35 matches per current topic, not every applicable law. Congress.gov results, when enabled, are recent bills filtered by title, not comprehensive semantic search. The Google Civic Information API requires credentials and address information; this release links to official address-based lookups rather than collecting a residence address.
+```bash
+npm install
+npm run check
+npm test
+# Browser integration (local simulated government responses)
+python test/browser_v2.py
+```
 
-The policy comparison view groups only Federal Register records sharing a Regulation Identifier Number (RIN) and containing both a proposed and final rule in the **currently loaded sample**. It is **not** an automated redline, legal interpretation or guarantee that one rule superseded the other.
+### Optional server-side environment variables (never publish secrets)
 
-Watchlist, ZIP and seen IDs live only in browser `localStorage`. There are no background jobs, accounts, cross-device sync, email or push notifications. Alerts are in-session when a newly fetched item matches a watched topic; avoid calling them real-time notifications.
+| Variable | Enables |
+| --- | --- |
+| `OPENSTATES_API_KEY` | State legislation |
+| `CONGRESS_API_KEY` | Congress.gov bill samples |
+| `NYC_LEGISTAR_TOKEN` | NYC Council's Legistar API |
+| `OPENAI_API_KEY` | Model-generated optional source-grounded research answers |
+| `OPENAI_MODEL` | Configured model name, default `gpt-4.1-mini` |
+| `DATABASE_URL` | PostgreSQL/Neon subscriber storage |
+| `RESEND_API_KEY` | Confirmations and optional policy emails |
+| `ALERTS_FROM_EMAIL` | Verified Resend sender, e.g. `alerts@yourdomain` |
+| `PUBLIC_SITE_URL` | HTTPS production origin for links, e.g. `https://civicscope-github.vercel.app` |
+| `CRON_SECRET` | Protected daily cron and subscriber unsubscribe HMAC |
 
-## Security/operations
+Apply `db/schema.sql` to an authorized PostgreSQL database before activating email. The cron runs daily at 13:00 UTC if configured. It never runs in the browser. Alerts use nationwide documents and are not locally verified.
 
-- Strict ZIP regex, fixed upstream hosts, limited topic allowlist; server-side API keys only.
-- HTML escaping and HTTPS URL checks before rendering externally sourced text.
-- Security headers and restrictive content security policy; no user-provided HTML execution.
-- 9-second upstream aborts, partial-success source service status, HTTP response caching.
-- Production requires additional rate limiting, abuse controls, monitoring, origin source verification, Sentry/telemetry, legal QA, accessibility audit, and tested recoverability.
+**Secrets must stay on the server.** Never add keys to `app.js`, `v2.js`, `.env.example` values, GitHub commits, or user-visible results. Configure Vercel encrypted environment variables. Verify sender domain and provider quotas before enabling mail.
 
-## Intended development trajectory
+## Data sources
 
-1. Data/accuracy: address-to-district lookup after opt-in, city/county adapters for zoning board & school board, actual ballots, official meeting calendars.
-2. Watchlists: authenticated database + real scheduled ingestion and opt-in notifications with unsubscribe and audit history.
-3. Compare: structured legal effective dates, document revisions, exact-version text diff with citations and human review.
-4. Operations: ingestion workers, source adapters with quality scores, data provenance tables, deduplication, automated tests, rate limiting and CI/CD.
+- [ZIP — Zippopotam.us](https://api.zippopotam.us/)
+- [Federal Register](https://www.federalregister.gov/developers/documentation/api/v1)
+- [Census Geocoder](https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.html)
+- [FEC election dates](https://www.fec.gov/introduction-campaign-finance/election-results-and-voting-information/)
+- [New York Board of Elections](https://elections.ny.gov/election-information)
+- [NYC ZAP projects](https://data.cityofnewyork.us/d/hgx4-8ukb)
+- [NYC Council API](https://council.nyc.gov/legislation/api/)
+- [Open States](https://docs.openstates.org/api-v3/)
+- [Congress.gov](https://api.congress.gov/)
 
-## License and disclaimer
+## Important limitations
 
-Code is provided as an application starter. Check external data-provider terms and attribution requirements. This is not a government site, election authority or legal advice.
+- U.S. national elections are not a full local election calendar. Official address-specific candidates, ballots, registration cutoffs and polling places require election authority integrations.
+- Local coverage starts with NYC citywide zoning applications. Expansion to 50 states, municipalities, local hearings, GIS parcels, school boards and geospatial querying needs additional source adapters, historical storage, licensing assessment and QA.
+- Federal Register rules are not the same as currently consolidated law. Use [eCFR](https://www.ecfr.gov/) and official state/local codes for applicable provisions.
+- RIN matching and plain-text paragraph difference **do not establish which legal requirements changed**. Legal review and codified text comparison are needed.
+- The research assistant grounds answers in recent federal documents; it does not independently verify local legal applicability.
+- Local storage does not sync devices. Email subscriptions require external paid/free-tier services, provider policies, sender authentication and production abuse controls. Do not publish a working email subscription form until these have been reviewed.
+- API integrations depend on provider uptime, schema, quotas, authentication and permitted reuse. The current tests use mocked upstream responses and do not certify live government API availability.
+
+## Quality and security
+
+```bash
+npm run check
+npm test
+python test/browser_v2.py
+```
+
+Input validation, upstream HTTPS host allowlists, URL safety, content escaping, timeouts, strict caching for private lookups, security headers and optional secret isolation are implemented. Still required before large-scale public launch: distributed API abuse/rate limiting, email deliverability tests, monitoring, source audits, database backups, automated vulnerability scanning, WCAG 2.2 manual testing, and actual public endpoint checks.
+
+The SQL source models subscriber consent and deliveries; no personal address is kept by CivicScope. Users should be informed that addresses are sent to the Census government service for lookup when they explicitly agree.

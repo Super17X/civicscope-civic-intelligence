@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test';import assert from 'node:assert/strict';
 import {isZip,topicTerm,normalizeRegister,normalizeStateBill} from '../api/data.js';
 test('ZIP validation keeps leading zero and rejects injection',()=>{assert.equal(isZip('00501'),true);for(const s of ['1000','100001','1<script>','10001%00','ABCDE'])assert.equal(isZip(s),false)});
 test('topic allowlist rejects arbitrary upstream query',()=>{assert.equal(topicTerm('land'),'land use');assert.equal(topicTerm('unknown'),null)});

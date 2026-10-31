@@ -1,1 +1,17 @@
-{"name":"civicscope","version":"1.0.0","private":true,"type":"module","description":"Nonpartisan ZIP-first civic policy and election intelligence","scripts":{"test":"node --test","check":"node --check app.js && node --check api/data.js"},"engines":{"node":">=20"}}
+{
+  "name": "civicscope",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Source-grounded US civic intelligence, geographic verification and policy monitoring",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check app.js && node --check v2.js && node --check api/data.js && node --check api/assist.js && node --check api/subscribe.js && node --check api/cron/alerts.js && node --check api/jurisdiction.js && node --check api/diff.js"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.0"
+  }
+}
