@@ -4,7 +4,7 @@ import handler,{federalFeed,localFeed} from '../api/data.js';
 import jurisdiction from '../api/jurisdiction.js';
 import assistant from '../api/assist.js';
 import signup from '../api/subscribe.js';
-import {electionDate,extractGeographies,normalizeNycProject,pairRules,boundedText} from '../api/lib/civic.js';
+import {electionDate,extractGeographies,normalizeNycProject,pairRules,boundedText,normalizeRegister} from '../api/lib/civic.js';
 const makeRes=()=>({statusCode:200,headers:{},setHeader(k,v){this.headers[k]=v},end(s){this.body=JSON.parse(s);return this}});
 const invoke=async(fn,method='GET',query={},body={})=>{const res=makeRes();await fn({method,query,body},res);return res};
 test('calendar computes election day 2026 and 2028 accurately',()=>{assert.equal(electionDate(2026),'2026-11-03');assert.equal(electionDate(2028),'2028-11-07')});
@@ -19,3 +19,5 @@ test('related rules require proposal and final sharing RIN',()=>{const mk=(type,
 test('public-policy query validation rejects unsafe symbols',()=>{assert.equal(boundedText('housing & something',90),null);assert.equal(boundedText('housing rules',90),'housing rules')});
 test('research rejects unsafe/empty prompts without querying upstream',async()=>{const d=await invoke(assistant,'POST',{}, {question:'no'});assert.equal(d.statusCode,400)});
 test('email subscription fails safely when unconfigured',async()=>{const d=await invoke(signup,'POST',{},{});assert.equal(d.statusCode,503);assert.match(d.body.error,/not been activated/)});
+
+test('actual Federal Register title-case types normalize for filters and labels',()=>{for(const [type,code,label] of [['Rule','RULE','Final rule'],['Proposed Rule','PRORULE','Proposed rule'],['Notice','NOTICE','Notice']]){const d=normalizeRegister({document_number:'2026-11111',title:'Test',type});assert.equal(d.type,code);assert.equal(d.stage,label)}});
